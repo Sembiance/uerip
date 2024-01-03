@@ -1,3 +1,9 @@
+This was designed to be ran on a Linux system with dotnet.
+It was also only tested on 1 game, Torchlight Infinite, so don't know how it'll handle other games.
+Lastly it requires 2 binary DLLs be named in a very specific way for CUE4Parse to properly extract all files/textures.
+One is built from 'detex' with info on how to build it below.
+The other is 'oodle' and comes from Unreal Engine itself: cp UnrealEngine/Engine/Source/Programs/Shared/EpicGames.Oodle/Sdk/2.9.3/linux/lib/liboo2corelinux64.so.9 ./dll/oo2core_9_win64.dll
+
 Clone the repo recursively:
 ```bash
 git clone --recursive https://github.com/Sembiance/uerip.git
