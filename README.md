@@ -32,3 +32,5 @@ NOTE: CUE4Parse tends to crash, thus if you try and use `uerip` to extract multi
 So I highly recommend listing the files first with `ueListFiles`, then call `uerip --fileid=...` for each and every file individually.
 
 You can examine `uerip.js` for how I do it but note that it uses deno and some external code not provided to run, so just use it as an example for the script that you will write.
+
+Finally, if you need an AESKey for your game, try extracting it with this script (not mine): https://gist.github.com/Sembiance/1c99081042ad41c53f3c8f30ac5de1ba
