@@ -1,0 +1,26 @@
+diff --git a/Makefile.conf b/Makefile.conf
+index 904963b..39d568e 100644
+--- a/Makefile.conf
++++ b/Makefile.conf
+@@ -14,7 +14,7 @@
+ # The variable TARGET_MACHINE has been initialized with the default library
+ # directory for the architecture.
+ 
+-LIBRARY_CONFIGURATION = STATIC
++LIBRARY_CONFIGURATION = SHARED
+ HEADER_FILE_INSTALL_DIR = /usr/include
+ SHARED_LIB_DIR = /usr/lib/$(TARGET_MACHINE)
+ STATIC_LIB_DIR = /usr/lib/$(TARGET_MACHINE)
+diff --git a/detex.h b/detex.h
+index adbeac5..4018d6d 100644
+--- a/detex.h
++++ b/detex.h
+@@ -761,7 +761,7 @@ DETEX_API bool detexDecompressTextureTiled(const detexTexture *texture, uint8_t
+  * image buffer, with pixels stored row-by-row, converting into the given pixel
+  * format.
+  */
+-DETEX_API bool detexDecompressTextureLinear(const detexTexture *texture, uint8_t *pixel_buffer,
++DETEX_HELPER_SHARED_EXPORT bool detexDecompressTextureLinear(const detexTexture *texture, uint8_t *pixel_buffer,
+ 	uint32_t pixel_format);
+ 
+ 

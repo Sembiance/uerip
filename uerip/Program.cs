@@ -198,8 +198,3 @@ namespace UERip
 		}
 	}
 }
-
-/*
-UE_game/Content/Art/UI/Textures/Common/Icon/CardPool/100_388/UI_Pet_SSR_ShengGe4_01_100.uasset
-UE_game/Content/Art/UI/Textures/Common/Icon/CardPool/100_388/UI_Pet_SSR_ShengGe4_01_100.uexp
-*/
