@@ -1,0 +1,3 @@
+# Haven't tested on dotnet > 8 yet
+>=dev-dotnet/dotnet-sdk-bin-9.0.0
+

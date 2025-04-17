@@ -1,0 +1,114 @@
+diff --git a/CUE4Parse/CUE4Parse.csproj b/CUE4Parse/CUE4Parse.csproj
+index 9f35d700..61900b8d 100644
+--- a/CUE4Parse/CUE4Parse.csproj
++++ b/CUE4Parse/CUE4Parse.csproj
+@@ -28,6 +28,7 @@
+     <PackageReference Include="Blake3" Version="2.0.0" />
+     <PackageReference Include="BouncyCastle.Cryptography" Version="2.5.0" />
+     <PackageReference Include="Infrablack.UE4Config" Version="0.7.2.97" />
++    <PackageReference Include="DotNetZip" Version="1.16.0" />
+     <PackageReference Include="LZMA-SDK" Version="22.1.1" />
+     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+     <PackageReference Include="OffiUtils" Version="2.0.1" />
+diff --git a/CUE4Parse/Compression/Compression.cs b/CUE4Parse/Compression/Compression.cs
+index 0e1bd139..6174376a 100644
+--- a/CUE4Parse/Compression/Compression.cs
++++ b/CUE4Parse/Compression/Compression.cs
+@@ -1,6 +1,5 @@
+ using System;
+ using System.IO;
+-using System.IO.Compression;
+ using System.Runtime.CompilerServices;
+ 
+ using CUE4Parse.UE4.Exceptions;
+@@ -9,6 +8,7 @@
+ using K4os.Compression.LZ4;
+ 
+ using ZstdSharp;
++using Ionic.Zlib;
+ 
+ namespace CUE4Parse.Compression
+ {
+@@ -38,7 +38,9 @@ public static void Decompress(byte[] compressed, int compressedOffset, int compr
+                     Buffer.BlockCopy(compressed, compressedOffset, uncompressed, uncompressedOffset, compressedSize);
+                     return;
+                 case CompressionMethod.Zlib:
+-                    ZlibHelper.Decompress(compressed, compressedOffset, compressedSize, uncompressed, uncompressedOffset, uncompressedSize, reader);
++                    var zlib = new ZlibStream(srcStream, CompressionMode.Decompress);
++                    zlib.Read(uncompressed, uncompressedOffset, uncompressedSize);
++                    zlib.Dispose();
+                     return;
+                 case CompressionMethod.Gzip:
+                     var gzip = new GZipStream(srcStream, CompressionMode.Decompress);
+diff --git a/CUE4Parse/Compression/OodleHelper.cs b/CUE4Parse/Compression/OodleHelper.cs
+index 93f01448..1d713587 100644
+--- a/CUE4Parse/Compression/OodleHelper.cs
++++ b/CUE4Parse/Compression/OodleHelper.cs
+@@ -71,24 +71,21 @@ public static bool DownloadOodleDll(string? path = null)
+         return DownloadOodleDllAsync(path).GetAwaiter().GetResult();
+     }
+ 
+-    public static void Decompress(byte[] compressed, int compressedOffset, int compressedSize,
++    public static unsafe void Decompress(byte[] compressed, int compressedOffset, int compressedSize,
+         byte[] uncompressed, int uncompressedOffset, int uncompressedSize, FArchive? reader = null)
+     {
+-        if (Instance is null)
++        long decodedSize;
++
++        fixed (byte* compressedPtr = compressed, uncompressedPtr = uncompressed)
+         {
+-            const string message = "Oodle decompression failed: not initialized";
+-            if (reader is not null) throw new OodleException(reader, message);
+-            throw new OodleException(message);
++            decodedSize = OodleLZ_Decompress(compressedPtr + compressedOffset, compressedSize,
++                                            uncompressedPtr + uncompressedOffset, uncompressedSize, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3);
+         }
+ 
+-        var decodedSize = Instance.Decompress(compressed.AsSpan(compressedOffset, compressedSize),
+-            uncompressed.AsSpan(uncompressedOffset, uncompressedSize));
+-
+         if (decodedSize <= 0)
+         {
+-            var message = $"Oodle decompression failed with result {decodedSize}";
+-            if (reader is not null) throw new OodleException(reader, message);
+-            throw new OodleException(message);
++            if (reader != null) throw new OodleException(reader, $"Oodle decompression failed with result {decodedSize}");
++            throw new OodleException($"Oodle decompression failed with result {decodedSize}");
+         }
+ 
+         if (decodedSize < uncompressedSize)
+@@ -98,6 +95,11 @@ public static void Decompress(byte[] compressed, int compressedOffset, int compr
+         }
+     }
+ 
++    [DllImport(OODLE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
++    public static extern long OodleLZ_Decompress(byte[] buffer, long bufferSize, byte[] output, long outputBufferSize, int a, int b, int c, long d, long e, long f, long g, long h, long i, int threadModule);
++    [DllImport(OODLE_DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
++    public static extern unsafe long OodleLZ_Decompress(byte* buffer, long bufferSize, byte* output, long outputBufferSize, int a, int b, int c, long d, long e, long f, long g, long h, long i, int threadModule);
++
+     public static async Task<bool> DownloadOodleDllAsync(string? path)
+     {
+         path ??= OODLE_DLL_NAME;
+diff --git a/CUE4Parse/UE4/VirtualFileCache/Manifest/OptimizedContentBuildManifest.cs b/CUE4Parse/UE4/VirtualFileCache/Manifest/OptimizedContentBuildManifest.cs
+index 1d936d91..ecddf6dd 100644
+--- a/CUE4Parse/UE4/VirtualFileCache/Manifest/OptimizedContentBuildManifest.cs
++++ b/CUE4Parse/UE4/VirtualFileCache/Manifest/OptimizedContentBuildManifest.cs
+@@ -5,6 +5,7 @@
+ 
+ using CUE4Parse.Compression;
+ using CUE4Parse.UE4.Readers;
++using Ionic.Zlib;
+ 
+ namespace CUE4Parse.UE4.VirtualFileCache.Manifest
+ {
+@@ -50,7 +51,9 @@ private void ParseData(byte[] buffer)
+                 {
+                     data = new byte[dataSizeUncompressed];
+                     var compressed = reader.ReadBytes(dataSizeCompressed);
+-                    ZlibHelper.Decompress(compressed, 0, compressed.Length, data, 0, data.Length);
++                    using var compressedStream = new MemoryStream(compressed);
++                    using var zlib = new ZlibStream(compressedStream, CompressionMode.Decompress);
++                    zlib.Read(data, 0, dataSizeUncompressed);
+                     break;
+                 }
+                 case EManifestStorageFlags.Encrypted:

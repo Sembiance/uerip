@@ -2,6 +2,9 @@
 rm -rf bin/*
 dotnet build --configuration Release
 dotnet publish --configuration Release
-cp ../dll/*.dll bin/Release/net*/publish/
-cp ../dll/*.dll bin/Release/net*/
-chmod 755 bin/Release/net*/Detex.dll bin/Release/net*/publish/Detex.dll
+
+netVersion=$(basename bin/Release/net*/)
+
+cp ../dll/*.dll bin/Release/"$netVersion"/publish/
+cp ../dll/*.dll bin/Release/"$netVersion"/
+chmod 755 bin/Release/"$netVersion"/Detex.dll bin/Release/"$netVersion"/publish/Detex.dll

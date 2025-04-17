@@ -49,6 +49,7 @@ namespace UEListFiles
 					"4.x" => new VersionContainer(EGame.GAME_UE4_LATEST),
 					"5.x" => new VersionContainer(EGame.GAME_UE5_LATEST),
 					"torchlightInfinite" => new VersionContainer(EGame.GAME_TorchlightInfinite),
+					"titanQuest2" => new VersionContainer(EGame.GAME_UE5_2),
 					_ => new VersionContainer(EGame.GAME_UE4_LATEST)
 				};
 				

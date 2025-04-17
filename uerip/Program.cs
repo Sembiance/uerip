@@ -26,6 +26,7 @@ using CUE4Parse.UE4.Versions;
 using CUE4Parse_Conversion;
 using CUE4Parse_Conversion.Sounds;
 using CUE4Parse_Conversion.Textures;
+using CUE4Parse.MappingsProvider;
 
 // Will need to set up project with: dotnet add package System.CommandLine --prerelease
 
@@ -41,18 +42,20 @@ namespace UERip
 			var outDirOption = new Option<string>("--outDir", "Output directory path"){ IsRequired = true };
 			var fileidTargetOption = new Option<string>("--fileid", "Just rip one fileid"){ IsRequired = false };
 			var ueVersionOption = new Option<string>("--ueVersion", "Which Unreal Engine version to specify. Allowed: 4.x, 5.x, torchlightInfinite  Default: 4.x"){ IsRequired = false };
+			var mapFileOption = new Option<string>("--mapFile", "Path to a mapping file. Optional."){ IsRequired = false };
 
 			var rootCommand = new RootCommand("Rips all assets from any PAK files found in pakDir to outDir");
 			rootCommand.AddOption(pakDirOption);
 			rootCommand.AddOption(outDirOption);
 			rootCommand.AddOption(aesKeyOption);
 			rootCommand.AddOption(skipSlowOption);
-			rootCommand.AddOption(fileidTargetOption);
 			rootCommand.AddOption(ueVersionOption);
+			rootCommand.AddOption(mapFileOption);
+			rootCommand.AddOption(fileidTargetOption);
 
-			rootCommand.SetHandler((pakDir, outDir, aesKey, skipSlow, fileidTarget, ueVersion) =>
+			rootCommand.SetHandler((pakDir, outDir, aesKey, skipSlow, fileidTarget, ueVersion, mapFile) =>
 			{
-				HashSet<string> knownOtherClasses = new HashSet<string> { "AkAssetPlatformData", "AnimBoneCompressionSettings", "AnimCurveCompressionSettings", "BlendSpace1D", "CompositeDataTable", "CurveLinearColor", "DataTable", "FileMediaSource", "Font", "FontFace", "MapBuildDataRegistry", "MediaTexture", "PhysicsAsset", "SoundCue", "TextureCube", "TextureRenderTarget2D", "UserDefinedStruct", "VolumeTexture" };
+				HashSet<string> knownOtherClasses = new HashSet<string> { "AkAssetPlatformData", "AnimBoneCompressionSettings", "AnimCurveCompressionSettings", "BlendSpace1D", "CompositeDataTable", "CurveLinearColor", "DataTable", "FileMediaSource", "Font", "FontFace", "MapBuildDataRegistry", "MediaTexture", "PhysicsAsset", "SoundCue", "TextureCube", "TextureRenderTarget2D", "UserDefinedStruct", "VolumeTexture", "LandscapeLayerInfoObject" };
 				SKPngEncoderOptions textureEncodeOptions = new SKPngEncoderOptions(SKPngEncoderFilterFlags.NoFilters, 1);
 				DirectoryInfo outDirInfo = new DirectoryInfo(outDir);
 
@@ -61,10 +64,14 @@ namespace UERip
 					"4.x" => new VersionContainer(EGame.GAME_UE4_LATEST),
 					"5.x" => new VersionContainer(EGame.GAME_UE5_LATEST),
 					"torchlightInfinite" => new VersionContainer(EGame.GAME_TorchlightInfinite),
-					_ => new VersionContainer(EGame.GAME_UE4_LATEST)
+					"titanQuest2" => new VersionContainer(EGame.GAME_UE5_2),
+					_ => new VersionContainer(EGame.GAME_UE5_LATEST)
 				};
 				
 				var provider = new DefaultFileProvider(pakDir, SearchOption.TopDirectoryOnly, false, ueVersionContainer);
+				if(mapFile!=null)
+    	        	provider.MappingsContainer = new FileUsmapTypeMappingsProvider(mapFile);
+
 				provider.Initialize();
 				if(aesKey!=null)
 					provider.SubmitKey(new FGuid(), new FAesKey(aesKey));
@@ -88,7 +95,7 @@ namespace UERip
 					{
 						try
 						{
-							var obj = provider.LoadObject(packageid);
+							var obj = provider.LoadPackageObject(packageid);
 							switch(obj)
 							{
 								case UTexture2D texture:
@@ -130,13 +137,15 @@ namespace UERip
 								//	new Exporter(obj, new ExporterOptions()).TryWriteToDir(outDirInfo, out string _, out string _);
 								//	continue;
 
+								case UTexture2DArray:
+								case UAnimComposite:
+								case UAnimMontage:
+								case UAnimSequence:
 								case UMaterialInterface:
-								case UStaticMesh:
+								case UPaperSprite:
 								case USkeletalMesh:
 								case USkeleton:
-								case UAnimSequence:
-								case UAnimMontage:
-								case UAnimComposite:
+								case UStaticMesh:
 									if(!skipSlow)
 									{
 										Console.WriteLine("\x1b[92m EXPORTING\x1b[96m:\x1b[0m " + obj.Class.ToString() + ": " + packageid);
@@ -192,7 +201,7 @@ namespace UERip
 
 				foreach(string otherClass in seenOtherClasses)
 					Console.WriteLine("\x1b[91m NEW OTHER\x1b[96m:\x1b[0m (Class: " + otherClass + ")");
-			}, pakDirOption, outDirOption, aesKeyOption, skipSlowOption, fileidTargetOption, ueVersionOption);
+			}, pakDirOption, outDirOption, aesKeyOption, skipSlowOption, fileidTargetOption, ueVersionOption, mapFileOption);
 
 			return await rootCommand.InvokeAsync(args);
 		}

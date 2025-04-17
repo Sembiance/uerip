@@ -7,11 +7,15 @@ The other is 'oodle' and comes from Unreal Engine itself: cp UnrealEngine/Engine
 Clone the repo recursively:
 ```bash
 git clone --recursive https://github.com/Sembiance/uerip.git
+cd uerip
+cd CUE4Parse
+git submodule update --init --recursive
+git apply ../oodle_zlib.patch
+cd ..
 ```
 
 Modify and build detex:
 ```bash
-cd uerip
 cd detex
 git apply ../detex.patch
 make
